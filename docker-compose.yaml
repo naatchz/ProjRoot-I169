@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Base de données MySQL
   db:
     image: mysql:8.0
     container_name: mysql_db
@@ -19,6 +20,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Application Node / App
+  app:
+    build: .
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: always
+
+  # Reverse Proxy Nginx
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+    restart: always
 
 volumes:
   db_data:
