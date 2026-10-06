@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   # Base de données MySQL
   db:
     image: mysql:8.0
@@ -21,19 +22,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Application Node / App
-  app:
-    build: .
-    expose:
-      - "3000"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: always
-
-  # Reverse Proxy Nginx
+   # Reverse Proxy Nginx
   nginx:
     image: nginx:alpine
     ports:
@@ -43,7 +32,6 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./certs:/etc/nginx/certs:ro
     depends_on:
-      - app
       - wordpress
     networks:
       - app-network
@@ -60,18 +48,43 @@ services:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-  app-network:
-    driver: bridge      - ./app/wordpress/wp-content:/var/www/html/wp-content
+      - ./app/wordpress/wp-content:/var/www/html/wp-content
       - ./config/wordpress/wp-config.php:/var/www/html/wp-config.php
     depends_on:
       db:
         condition: service_healthy
-networks:
     networks:
       - app-network
 
+  # Monitoring Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - app-network
+    restart: always
+
+  # Monitoring Grafana
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - app-network
+    depends_on:
+      - prometheus
+    restart: always
 
 volumes:
   db_data:
 
+networks:
+  app-network:
+    driver: bridge
