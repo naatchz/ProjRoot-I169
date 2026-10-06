@@ -44,13 +44,34 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - app
+      - wordpress
     networks:
       - app-network
     restart: always
 
+  # Application WordPress
+  wordpress:
+    build:
+      context: .
+      dockerfile: docker/wordpress/Dockerfile
+    container_name: wordpress_app
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+    volumes:
+  app-network:
+    driver: bridge      - ./app/wordpress/wp-content:/var/www/html/wp-content
+      - ./config/wordpress/wp-config.php:/var/www/html/wp-config.php
+    depends_on:
+      db:
+        condition: service_healthy
+networks:
+    networks:
+      - app-network
+
+
 volumes:
   db_data:
 
-networks:
-  app-network:
-    driver: bridge
